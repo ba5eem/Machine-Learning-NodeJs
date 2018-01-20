@@ -4,3 +4,7 @@ Machine Learning with NodeJs
 
 Tutorial found at: https://hackernoon.com/machine-learning-with-javascript-part-1-9b97f3ed4fe5
 
+Master Branch - Linear Regression
+
+KNN Branch - kNN - k Nearest Neighbour
+
