@@ -1,53 +1,105 @@
 const ml = require('ml-regression');
+const KNN = require('ml-knn');
 const csv = require('csvtojson');
-const SLR = ml.SLR; // Simple Linear Regression
+const prompt = require('prompt');
+const csvFilePath = 'iris.csv';
+const names = ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth', 'type'];
 
-const csvFilePath = 'advertising.csv'; // Data
+let knn;
+let seperationSize;
+let data = [],
+  X = [],
+  y = [];
 
-let csvData = [], // parsed Data
-    X = [], // Input
-    y = []; // Output
+let trainingSetX = [],
+    trainingSetY = [],
+    testSetX = [],
+    testSetY = [];
 
-let regressionModel;
+csv({ noHeader: true, headers: names })
+  .fromFile(csvFilePath)
+  .on('json', ( jsonObj ) => {
+    data.push( jsonObj );
+  })
+  .on('done', ( error ) => {
+    seperationSize = 0.7 * data.length;
+    data = shuffleArray( data );
+    dressData();
+  });
 
-const readline = require('readline'); // For user prompt to allow predictions
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    let temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
 
-const rl = readline.createInterface({
-    input: process.stdin, 
-    output: process.stdout
-});
-
-csv()
-    .fromFile(csvFilePath)
-    .on('json', (jsonObj) => {
-        csvData.push(jsonObj);
-    })
-    .on('done', () => {
-        dressData(); // To get data points from JSON Objects
-        performRegression(); 
-    });
-
-function performRegression() {
-    regressionModel = new SLR(X, y); // Train the model on training data
-    console.log(regressionModel.toString(3));
-    predictOutput();
+  return array;
 }
 
-function dressData() {;
-    csvData.forEach((row) => {
-        X.push(f(row.radio));
-        y.push(f(row.sales));
-    });
+function dressData() {
+  let types = new Set();
+
+  data.forEach(( row ) => {
+    types.add( row.type );
+  });
+  typesArray = [...types];
+
+  data.forEach(( row ) => {
+    let rowArray, typeNumber;
+  
+  rowArray = Object.keys(row).map(key => parseFloat(row[key])).slice(0,4);
+
+  typeNumber = typesArray.indexOf( row.type );
+
+  X.push( rowArray );
+  y.push( typeNumber );
+
+  });
+
+  trainingSetX = X.slice(0, seperationSize);
+  trainingSetY = y.slice(0, seperationSize);
+  testSetX = X.slice(seperationSize);
+  testSetY = y.slice(seperationSize);
+
+  train();
+
 }
 
-function f(s) {
-    return parseFloat(s);
+function train() {
+  knn = new KNN(trainingSetX, trainingSetY, {k: 7});
+  test();
 }
 
-function predictOutput() {
+function test() {
+  const result = knn.predict(testSetX);
+  const testSetLength = testSetX.length;
+  const predictionError = error(result, testSetY);
+  console.log( ` Test set size = ${testSetLength} and number of Misclassifications = ${predictionError}`);
+  predict();
+}
 
-    rl.question('Enter input X for prediction (Press CTRL+C to exit) : ', (answer) => {
-        console.log(`At X = ${answer}, y =  ${regressionModel.predict(parseFloat(answer))}`);
-        predictOutput();
-    });
+function error(predicted, expected) {
+  let misclassifications = 0;
+  for (let index = 0; index < predicted.length; index++) {
+    if ( predicted[index] !== expected[index] ) {
+      misclassifications++;
+    }
+  }
+  return misclassifications;
+}
+
+function predict() {
+  let temp = [];
+  prompt.start();
+
+  prompt.get(['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'], function ( err, result ) {
+    if ( !err ) {
+      for ( let key in result ) {
+        temp.push( parseFloat(result[key]));
+      }
+      console.log( `With ${temp} -- type = ${knn.predict( temp )}`);
+    }
+  });
 }
